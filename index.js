@@ -4,7 +4,8 @@ require("dotenv").config();
 const { MongoClient, ServerApiVersion } = require("mongodb");
 const app = express();
 const port = process.env.PORT || 5000;
-
+// DB_USER = danceSchoolDB
+// DB_PASSWORD = cReUorTb1nI6rtsy
 // middleware
 app.use(cors());
 app.use(express.json());

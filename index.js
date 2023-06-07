@@ -28,6 +28,26 @@ async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
+
+    // create db
+    const danceSchoolDB = client.db("danceSchoolDB");
+    // user collection
+    const userCollection = danceSchoolDB.collection("users");
+
+    //users operation
+    app.post("/newUsers", async (req, res) => {
+      const userInfo = req.body;
+
+      const isExistingUser = await userCollection.findOne({
+        email: userInfo.email,
+      });
+      if (isExistingUser) {
+        return res.send({ message: "User already exists" });
+      }
+      const addUserInfo = await userCollection.insertOne(userInfo);
+      res.send(addUserInfo);
+    });
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(

@@ -1,11 +1,10 @@
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const app = express();
 const port = process.env.PORT || 5000;
-// DB_USER = danceSchoolDB
-// DB_PASSWORD = cReUorTb1nI6rtsy
+
 // middleware
 app.use(cors());
 app.use(express.json());
@@ -38,7 +37,6 @@ async function run() {
     //users operation
     app.post("/newUsers", async (req, res) => {
       const userInfo = req.body;
-
       const isExistingUser = await userCollection.findOne({
         email: userInfo.email,
       });
@@ -48,7 +46,35 @@ async function run() {
       const addUserInfo = await userCollection.insertOne(userInfo);
       res.send(addUserInfo);
     });
-
+    // get all user
+    app.get("/users", async (req, res) => {
+      const allUser = await userCollection.find().toArray();
+      res.send(allUser);
+    });
+    app.patch("/users/admin/:id", async (req, res) => {
+      const id = req.params.id;
+      const aspectRole = req.headers.role;
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          role:
+            aspectRole === "admin"
+              ? "admin"
+              : aspectRole === "instructor"
+              ? "instructor"
+              : "student",
+        },
+      };
+      const updateUser = await userCollection.updateOne(filter, updateDoc);
+      res.send(updateUser);
+    });
+    // delete user
+    app.delete("/users/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const deleteUser = await userCollection.deleteOne(query);
+      res.send(deleteUser);
+    });
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(

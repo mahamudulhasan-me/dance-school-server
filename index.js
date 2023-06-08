@@ -91,6 +91,26 @@ async function run() {
         .toArray();
       res.send(classes);
     });
+
+    // set status of class
+    app.patch("/classes/admin/:id", async (req, res) => {
+      const id = req.params.id;
+      const status = req.headers.status;
+      console.log(id, status);
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          status:
+            status === "approve"
+              ? "approved"
+              : status === "deny"
+              ? "denied"
+              : "pending",
+        },
+      };
+      const updateStatus = await classCollection.updateOne(filter, updateDoc);
+      res.send(updateStatus);
+    });
     // all classes for by admin acess
     app.get("/classes", async (req, res) => {
       const classes = await classCollection.find().toArray();

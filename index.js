@@ -33,6 +33,8 @@ async function run() {
     const danceSchoolDB = client.db("danceSchoolDB");
     // user collection
     const userCollection = danceSchoolDB.collection("users");
+    // class collection
+    const classCollection = danceSchoolDB.collection("classes");
 
     //users operation
     app.post("/newUsers", async (req, res) => {
@@ -74,6 +76,25 @@ async function run() {
       const query = { _id: new ObjectId(id) };
       const deleteUser = await userCollection.deleteOne(query);
       res.send(deleteUser);
+    });
+
+    // class operation
+    app.post("/addClass", async (req, res) => {
+      const classDetails = req.body;
+      const addClass = await classCollection.insertOne(classDetails);
+      res.send(addClass);
+    });
+    app.get("/classes/:email", async (req, res) => {
+      const email = req.params?.email;
+      const classes = await classCollection
+        .find({ instructorEmail: email })
+        .toArray();
+      res.send(classes);
+    });
+    // all classes for by admin acess
+    app.get("/classes", async (req, res) => {
+      const classes = await classCollection.find().toArray();
+      res.send(classes);
     });
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });

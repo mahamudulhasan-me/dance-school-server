@@ -132,6 +132,23 @@ async function run() {
       if (email !== decodedEmail) {
         return res.send({ admin: false });
       }
+      const query = { email: email };
+      const user = await userCollection.findOne(query);
+      const isAdmin = { admin: user?.role === "admin" };
+      res.send(isAdmin);
+    });
+
+    //check user isInstructor
+    app.get("/users/instructor/:email", verifyJWT, async (req, res) => {
+      const email = req.params.email;
+      const decodedEmail = req.decoded.email;
+      if (email !== decodedEmail) {
+        return res.send({ instructor: false });
+      }
+      const query = { email: email };
+      const user = await userCollection.findOne(query);
+      const isAdmin = { instructor: user?.role === "instructor" };
+      res.send(isAdmin);
     });
     // delete user
     app.delete("/users/:id", async (req, res) => {
@@ -193,9 +210,15 @@ async function run() {
       res.send(updateFeedback);
     });
     // all classes for by admin acess
-    app.get("/classes", async (req, res) => {
+    app.get("/classes", verifyJWT, verifyAdmin, async (req, res) => {
       const classes = await classCollection.find().toArray();
       res.send(classes);
+    });
+    // get all approve class
+    app.get("/approvedClasses", async (req, res) => {
+      const query = { status: "approved" };
+      const approvedClasses = await classCollection.find(query).toArray();
+      res.send(approvedClasses);
     });
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });

@@ -60,6 +60,8 @@ async function run() {
     const classCollection = danceSchoolDB.collection("classes");
     // selected class collection
     const selectedClassCollection = danceSchoolDB.collection("selectedClasses");
+    // payment collection
+    const paymentCollection = danceSchoolDB.collection("payments");
     // post jwt token
     app.post("/jwt", (req, res) => {
       const email = req.body;
@@ -262,7 +264,7 @@ async function run() {
     });
 
     // create payment intent
-    app.post("/create-payment-intent", async (req, res) => {
+    app.post("/create-payment-intent", verifyJWT, async (req, res) => {
       const { price } = req.body;
       const amount = price * 100;
 
@@ -276,6 +278,22 @@ async function run() {
         clientSecret: paymentMethod.client_secret,
       });
     });
+
+    // payment
+    app.post("/payments", verifyJWT, async (req, res) => {
+      const payment = req.body;
+      // const menuItems = payment.menuItems.map((item) => new ObjectId(item));
+      // payment.menuItems = menuItems;
+      const insertedResult = await paymentCollection.insertOne(payment);
+
+      const query = {
+        _id: { $in: payment.cartItems.map((id) => new ObjectId(id)) },
+      };
+      const deletedResult = await selectedClassCollection.deleteMany(query);
+
+      res.send({ insertedResult, deletedResult });
+    });
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(

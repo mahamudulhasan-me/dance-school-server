@@ -11,7 +11,6 @@ app.use(cors());
 app.use(express.json());
 
 const verifyJWT = (req, res, next) => {
-  console.log(req.headers.authorization);
   const authorization = req.headers.authorization;
   if (!authorization) {
     return res
@@ -56,7 +55,8 @@ async function run() {
     const userCollection = danceSchoolDB.collection("users");
     // class collection
     const classCollection = danceSchoolDB.collection("classes");
-
+    // selected class collection
+    const selectedClassCollection = danceSchoolDB.collection("selectedClasses");
     // post jwt token
     app.post("/jwt", (req, res) => {
       const email = req.body;
@@ -181,7 +181,6 @@ async function run() {
     app.patch("/classes/admin/:id", async (req, res) => {
       const id = req.params.id;
       const status = req.headers.status;
-      console.log(id, status);
       const filter = { _id: new ObjectId(id) };
       const updateDoc = {
         $set: {
@@ -209,16 +208,54 @@ async function run() {
       const updateFeedback = await classCollection.updateOne(filter, updateDoc);
       res.send(updateFeedback);
     });
-    // all classes for by admin acess
+    // all classes for by admin access
     app.get("/classes", verifyJWT, verifyAdmin, async (req, res) => {
       const classes = await classCollection.find().toArray();
       res.send(classes);
     });
+
     // get all approve class
     app.get("/approvedClasses", async (req, res) => {
       const query = { status: "approved" };
       const approvedClasses = await classCollection.find(query).toArray();
       res.send(approvedClasses);
+    });
+    // class add on cart
+    app.post("/selectClass", async (req, res) => {
+      const classInfo = req.body;
+      const classId = classInfo.classId;
+      const email = classInfo.studentEmail;
+      const isAlreadySelected = await selectedClassCollection.findOne({
+        classId: classId,
+        studentEmail: email,
+      });
+      if (isAlreadySelected) {
+        return res.send({ message: "Class already selected" });
+      }
+      const addClass = await selectedClassCollection.insertOne(classInfo);
+      res.send(addClass);
+    });
+    app.get("/selectedClass/:email", verifyJWT, async (req, res) => {
+      const email = req.params.email;
+      const filter = { studentEmail: email };
+      const decodedEmail = req.decoded.email;
+
+      if (email !== decodedEmail) {
+        return res
+          .status(403)
+          .send({ error: true, message: "Forbidden Access" });
+      }
+      const selectedClasses = await selectedClassCollection
+        .find(filter)
+        .toArray();
+      res.send(selectedClasses);
+    });
+    app.delete("/selectedClass/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+
+      const removeClass = await selectedClassCollection.deleteOne(query);
+      res.send(removeClass);
     });
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });

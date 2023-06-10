@@ -314,6 +314,7 @@ async function run() {
         .toArray();
       res.send(result);
     });
+
     app.get("/enrolled-classes/:email", async (req, res) => {
       const email = req.params.email;
 
@@ -337,7 +338,20 @@ async function run() {
         .find(classQuery)
         .toArray();
 
-      res.send(enrolledClassDetails);
+      // Combine class details with payment date
+      const enrichedEnrolledClasses = enrolledClassDetails.map(
+        (classDetail) => {
+          const payment = enrolledClasses.find((payment) =>
+            payment.classesId.flat().includes(classDetail._id.toString())
+          );
+          return {
+            classDetail,
+            paymentDate: payment.date,
+          };
+        }
+      );
+
+      res.send(enrichedEnrolledClasses);
     });
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });

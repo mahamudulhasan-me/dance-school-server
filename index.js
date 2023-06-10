@@ -162,6 +162,16 @@ async function run() {
       res.send(deleteUser);
     });
 
+    // app.get("/instructor", async (req, res) => {
+    //   const query = { role: "instructor" };
+    //   const instructors = await userCollection.find(query).toArray();
+    //   const emails = instructors.map((instructor) => instructor.email);
+
+    //   const classes = emails.forEach((email) => {
+    //     classCollection.find({ instructorEmail: email }).toArray();
+    //   });
+    //   res.send(instructors);
+    // });
     // class operation
     app.post("/addClass", verifyJWT, verifyInstructor, async (req, res) => {
       const classDetails = req.body;
@@ -194,7 +204,6 @@ async function run() {
               : status === "deny"
               ? "denied"
               : "pending",
-          feedback: req?.body,
         },
       };
       const updateStatus = await classCollection.updateOne(filter, updateDoc);
@@ -222,6 +231,14 @@ async function run() {
     app.get("/approvedClasses", async (req, res) => {
       const query = { status: "approved" };
       const approvedClasses = await classCollection.find(query).toArray();
+      res.send(approvedClasses);
+    });
+    app.get("/popular-classes", async (req, res) => {
+      const query = { status: "approved" };
+      const approvedClasses = await classCollection
+        .find(query)
+        .sort({ enrolledStudent: -1 })
+        .toArray();
       res.send(approvedClasses);
     });
     // class add on cart
@@ -352,6 +369,52 @@ async function run() {
       );
 
       res.send(enrichedEnrolledClasses);
+    });
+
+    app.get("/instructor", async (req, res) => {
+      // Filter users by role = 'instructor'
+      const instructors = await userCollection
+        .find({ role: "instructor" })
+        .toArray();
+
+      // Extract email addresses of instructors
+      const instructorEmails = instructors.map(
+        (instructor) => instructor.email
+      );
+
+      // Retrieve class information for each instructor
+      const instructorClasses = await classCollection
+        .find({ instructorEmail: { $in: instructorEmails } })
+        .toArray();
+
+      // Retrieve user information for each instructor
+      const instructorUsers = await userCollection
+        .find({ email: { $in: instructorEmails } })
+        .toArray();
+
+      // Match class and user information
+      const result = instructorUsers.map((user) => {
+        const userClasses = instructorClasses.filter(
+          (classData) => classData.instructorEmail === user.email
+        );
+        const totalClasses = userClasses.length;
+        const totalEnrollmentStudent = userClasses.reduce(
+          (total, classData) => total + classData.enrolledStudent,
+          0
+        );
+
+        return {
+          name: user.name,
+          email: user.email,
+          photoUrl: user.photoUrl,
+          phoneNumber: user.phoneNumber,
+          gender: user.gender,
+          totalClasses,
+          totalEnrollmentStudent,
+        };
+      });
+
+      res.json(result);
     });
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });

@@ -3,7 +3,6 @@ const cors = require("cors");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
 const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY);
-// PAYMENT_SECRET_KEY = sk_test_51NEWqJBqXwzigbXRb039ofg3Ajeii12rAmjpxh5FLcHM4BItmPElMRKFGWOnqcYe0vhcDcfWbj0pdQaTPJXq5q8900ecjPxETe
 
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const app = express();
@@ -282,18 +281,64 @@ async function run() {
     // payment
     app.post("/payments", verifyJWT, async (req, res) => {
       const payment = req.body;
-      // const menuItems = payment.menuItems.map((item) => new ObjectId(item));
-      // payment.menuItems = menuItems;
       const insertedResult = await paymentCollection.insertOne(payment);
 
-      const query = {
-        _id: { $in: payment.cartItems.map((id) => new ObjectId(id)) },
-      };
+      // delete the selected classes
+      const selectedClassIds = payment.selectedClassesId.map(
+        (id) => new ObjectId(id)
+      );
+      const query = { _id: { $in: selectedClassIds } };
       const deletedResult = await selectedClassCollection.deleteMany(query);
 
-      res.send({ insertedResult, deletedResult });
+      // Update the class documents
+      const classIds = payment.classesId.map((id) => new ObjectId(id));
+      const updateQuery = { _id: { $in: classIds } };
+      const updateOperation = {
+        $inc: { enrolledStudent: 1, availableSeat: -1 },
+      };
+      const updateResult = await classCollection.updateMany(
+        updateQuery,
+        updateOperation
+      );
+
+      res.send({ insertedResult, deletedResult, updateResult });
     });
 
+    // get payment history
+    app.get("/payment/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email: email };
+      const result = await paymentCollection
+        .find(query)
+        .sort({ date: -1 })
+        .toArray();
+      res.send(result);
+    });
+    app.get("/enrolled-classes/:email", async (req, res) => {
+      const email = req.params.email;
+
+      // Find the enrolled classes for the student in the payment collection
+      const paymentQuery = { email: email };
+      const enrolledClasses = await paymentCollection
+        .find(paymentQuery)
+        .toArray();
+
+      // Extract the class IDs from the enrolled classes
+      let classIds = [];
+      enrolledClasses.forEach((payment) => {
+        classIds = classIds.concat(payment.classesId.flat());
+      });
+
+      // Find the corresponding classes in the class collection
+      const classQuery = {
+        _id: { $in: classIds.map((id) => new ObjectId(id)) },
+      };
+      const enrolledClassDetails = await classCollection
+        .find(classQuery)
+        .toArray();
+
+      res.send(enrolledClassDetails);
+    });
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
